@@ -2,14 +2,11 @@
 #include <vector>
 #include <thread>
 #include <fstream>
-
 #include "mpirxx.h"
 #include "mpir.h"
-
 #include "search.h"
 
 #define THREAD_COUNT 6
-
 
 int main()
 {
@@ -20,7 +17,7 @@ int main()
 	std::ifstream infile("prime_candidates.txt");
 	while (infile >> prime)
 	{
-		batches[++idx % THREAD_COUNT].push_back(prime);
+		batches[++idx % THREAD_COUNT].emplace_back(prime);
 	}
 	std::cout << "dataset ready\n";
 	
