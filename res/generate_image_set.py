@@ -5,7 +5,7 @@ from numba import cuda, int16
 
 
 IMG_PATH = r'pic_128.jpg'
-OUTPUT_PATH = r'prime_candidates.txt'
+OUTPUT_PATH = r'prime_candidates.bin'
 # ubiquity of primes: ln(10) ~ 2.3
 # only generating odd numbers, this is more than enough
 LIMIT = int(128 * 128 * 2.3)
@@ -18,32 +18,31 @@ def _bw(image):
 
 
 def bw_cuda(mtx):
-    return _bw[(4, 4), (32, 32)](mtx)
+    return _bw[(16, 16), (8, 8)](mtx)
 
 
 def get_candidates():
     img = Image.open(IMG_PATH)
     seen_before = set()
-    to_string = [str(i) for i in range(10)]
-    to_int = {str(i): i for i in range(10)}
 
     for _ in tqdm.trange(LIMIT):
         while True:
             bw_img = img.convert('L')
             bw_mtx = np.array(bw_img, dtype='int16')
-            bw_mtx += np.random.randint(0, 3, size=(128, 128), dtype='int16')
+            bw_mtx += np.random.randint(0, 3, size=(128, 128), dtype='int8')
 
             bw_cuda(bw_mtx)
             digits = bw_mtx.flatten()
-            num = "".join(to_string[d] for d in digits)
 
-            n = to_int[num[-1]]
+            n = digits[-1]
             if n % 2 == 0:
                 n = n + 1 if np.random.rand() > 0.5 else n - 1
-            num = num[:-1] + to_string[n]
+                digits[-1] = n
 
-            if len(num) == 128*128 and num not in seen_before:
-                seen_before.add(num)
+            candidate = digits.tobytes()
+
+            if len(candidate) == 128*128*2 and candidate not in seen_before:
+                seen_before.add(candidate)
                 break
 
     return seen_before
@@ -51,5 +50,5 @@ def get_candidates():
 
 if __name__ == "__main__":
     candidates = get_candidates()
-    with open(OUTPUT_PATH, 'w') as f:
-        f.writelines((str(num) + '\n' for num in candidates))
+    with open(OUTPUT_PATH, 'wb') as f:
+        f.writelines((num[::2] + b'\x0A' for num in candidates))
